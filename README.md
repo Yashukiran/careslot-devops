@@ -280,8 +280,8 @@ kubectl get hpa -n careslot -w          # in one terminal
 kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090
 # http://localhost:9090/targets  → serviceMonitor/careslot/careslot-backend should be UP
 
-kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3001:80
-# http://localhost:3001  (admin / careslot-admin) → Dashboards → CareSlot API
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3002:80
+# http://localhost:3002  (admin / careslot-admin) → Dashboards → CareSlot API
 ```
 
 ---

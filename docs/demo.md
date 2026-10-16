@@ -1,14 +1,29 @@
 # Demo script
 
-Rough order for the final presentation. Before starting: cluster is up (`terraform apply` + `scripts/install-addons.sh`), at least one green pipeline run, and port-forwards for Prometheus/Grafana open in separate terminals.
+Order for the final presentation. The cluster runs locally on kind (see the README), so before starting:
+
+```bash
+./scripts/setup-local-cluster.sh                     # cluster + monitoring + app (skip if already up)
+# terminal 2 - keep open
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090
+# terminal 3 - keep open
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3002:80
+# terminal 4 - the self-hosted GitHub runner
+cd C:\actions-runner; .\run.cmd
+```
+
+Use `kubectl config use-context kind-careslot` so the commands below hit the right cluster.
 
 ## 1. Application
-- Open the app through the ingress address, walk through dashboard → book an appointment → check the patient in → mark done.
-- Try to double-book the same doctor at the same time → error from the API.
+- Open http://careslot.127.0.0.1.nip.io (this goes through the ingress).
+- Dashboard → **+ Book** → book an appointment → **Check in** → **Done**.
+- Try booking the same doctor at an overlapping time → "Doctor already has an appointment in this time slot".
 
 ## 2. API
-- `http://<ingress>/docs` doesn't exist (ingress only routes `/api` + `/`), so show Swagger locally with `docker compose up` or via `kubectl port-forward svc/careslot-backend 8000:8000 -n careslot` → http://localhost:8000/docs
-- Create / read / update / delete a doctor from Swagger.
+```bash
+kubectl port-forward svc/careslot-backend 8000:8000 -n careslot
+```
+Open http://localhost:8000/docs and create / read / update / delete a doctor from Swagger. Show `/health`, `/ready` and `/metrics`.
 
 ## 3. Database
 ```bash
@@ -17,50 +32,53 @@ kubectl exec -it careslot-postgres-0 -n careslot -- psql -U careslot -d careslot
 kubectl exec -it careslot-postgres-0 -n careslot -- psql -U careslot -d careslot -c "select * from alembic_version;"
 ```
 
-## 4. Git + CI (live change)
-- Small visible change, e.g. the clinic name in `frontend/src/components/Sidebar.jsx`.
-- `git commit -am "Rename clinic in sidebar" && git push`
-- Show the Actions run: test → build/scan (both images) → deploy.
-
-## 5. Docker + Trivy + GHCR
-- Point at the two Dockerfiles (multi-stage frontend, non-root users).
-- Open the Trivy step log in the run, explain the result (`docs/trivy.md`).
-- GHCR packages page: both images tagged with the commit SHA.
-
-## 6. Terraform
-- Walk through `vpc.tf`, `eks.tf`, `github-oidc.tf`.
-- `terraform plan` → "No changes" (infra matches the code).
-- AWS console: VPC with its 4 subnets, EKS cluster + node group.
-
-## 7. Kubernetes + Helm
+## 4. Tests
 ```bash
+cd backend && pytest -v
+```
+
+## 5. Git + CI + deploy (live change)
+- Make a small visible change, e.g. the clinic name in `frontend/src/components/Sidebar.jsx`.
+- `git commit -am "Rename clinic in sidebar" && git push`
+- Actions tab: **Test → Build, scan & push (backend / frontend) → Deploy to local cluster**.
+- `kubectl get pods -n careslot -w` shows the rolling update; refresh the app and the change is there.
+- `kubectl describe deploy careslot-frontend -n careslot | grep Image` → tag = the commit SHA just pushed.
+
+## 6. Docker + Trivy + GHCR
+- Both Dockerfiles: multi-stage frontend, non-root users (`docker compose exec backend id`).
+- Open the **Trivy scan** step log in the run and explain the result (`docs/trivy.md`).
+- GitHub profile → Packages → `careslot-backend` / `careslot-frontend` with SHA tags.
+
+## 7. Terraform
+- Walk through `vpc.tf` (VPC, 2 public + 2 private subnets, NAT), `eks.tf` (cluster, node group, add-ons) and `github-oidc.tf`.
+- `terraform init` and `terraform validate`.
+- Explain that applying it needs a paid AWS account (EKS isn't in the free plan), which is why the cluster for the demo runs on kind, and that the same Helm chart deploys to both.
+
+## 8. Kubernetes + Helm
+```bash
+kubectl apply -f k8s/namespace.yaml
 kubectl get pods -n careslot -o wide
 kubectl get svc,ingress -n careslot
 helm list -n careslot
 helm history careslot -n careslot
-kubectl describe deploy careslot-backend -n careslot | grep Image   # = the commit sha just pushed
 ```
-- Refresh the app → the change from step 4 is live.
 
-## 8. HPA
+## 9. HPA
 ```bash
-kubectl get hpa -n careslot -w
-./scripts/loadtest.sh          # second terminal
+kubectl get hpa -n careslot -w        # one terminal
+./scripts/loadtest.sh                 # another one
 ```
-Replicas go from 2 up as CPU passes 60%, and come back down a couple of minutes after the load stops.
+Replicas go 2 → 6 as CPU passes 60%, and drop back a few minutes after the load stops.
 
-## 9. Monitoring
-- Prometheus → Status → Targets → `careslot-backend` is UP.
-- Grafana → CareSlot API dashboard: request rate and pod count jump during the load test.
+## 10. Monitoring
+- http://localhost:9090/targets → `serviceMonitor/careslot/careslot-backend` is **UP**.
+- http://localhost:3002 (admin / careslot-admin) → Dashboards → **CareSlot API** while the load test runs.
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 - `kubectl apply -f troubleshooting/broken-service.yaml`, show the empty endpoints, fix the selector live (see `troubleshooting/README.md`).
-- Same for `broken-image.yaml` if time allows.
+- `kubectl apply -f troubleshooting/broken-image.yaml` → `ImagePullBackOff` → `kubectl describe` → fix the tag.
 
-## 11. Clean up (after evaluation)
+## 12. Clean up
 ```bash
-helm uninstall careslot -n careslot
-helm uninstall ingress-nginx -n ingress-nginx
-helm uninstall kube-prometheus-stack -n monitoring
-cd terraform && terraform destroy
+kind delete cluster --name careslot
 ```
