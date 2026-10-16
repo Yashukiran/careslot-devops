@@ -23,7 +23,6 @@ dist/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
-.terraform.lock.hcl
 crash.log
 
 # misc

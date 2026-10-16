@@ -1,0 +1,18 @@
+# copy to terraform.tfvars and adjust - terraform.tfvars is git-ignored.
+# AWS credentials come from `aws configure` / environment variables, never from this file.
+
+region             = "ap-south-1"
+owner              = "yashukiran"
+cluster_name       = "careslot-eks"
+kubernetes_version = "1.35"
+
+vpc_cidr            = "10.20.0.0/16"
+node_instance_types = ["t3.medium"]
+node_desired_size   = 2
+node_min_size       = 1
+node_max_size       = 3
+
+github_repository = "Yashukiran/careslot-devops"
+
+# set to false if your account already has the GitHub OIDC provider
+create_github_oidc_provider = true
