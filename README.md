@@ -2,6 +2,9 @@
 
 CareSlot is a front-desk app for a small multi-doctor clinic. Reception staff use it to register patients, book them in with a doctor, check them in when they arrive and mark the visit done. The dashboard shows today's schedule, who is in the waiting room and how busy each doctor is.
 
+**Presentation:** [Google Slides](https://docs.google.com/presentation/d/1gozq9zRrB_hWzUNHuiw40d-w5joAO3xT/edit?usp=sharing) · [PowerPoint file](demo/ppt/CareSlot_DevOps_Presentation.pptx) · [Screenshots](screenshots/README.md)
+
+
 It's my final DevOps capstone: the app itself is small, and most of the work is in taking it from my laptop to a monitored Kubernetes cluster on AWS through a CI/CD pipeline.
 
 **Stack:** React + Vite · FastAPI · PostgreSQL · SQLAlchemy + Alembic · Pytest · Docker · GitHub Actions · Trivy · GHCR · Terraform (AWS VPC + EKS) · Helm · ingress-nginx · HPA · Prometheus + Grafana
