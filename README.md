@@ -62,6 +62,9 @@ It's my final DevOps capstone: the app itself is small, and most of the work is 
 - Patients: search by name or phone, add, edit, delete
 - Doctors: add, mark on/off duty, remove
 - Booking rules enforced by the API: no double-booking a doctor, no bookings for off-duty doctors, phone numbers unique
+- Priority (routine / urgent) on every appointment, with a badge and a filter
+- Recent activity feed: bookings, check-ins, new patients and doctor changes
+- Sidebar build indicator: API/database status plus the git SHA and environment that's currently deployed, so after a pipeline run you can see the new version is live
 
 ### API
 
@@ -74,9 +77,11 @@ It's my final DevOps capstone: the app itself is small, and most of the work is 
 | GET/PUT/DELETE | `/api/doctors/{id}` | read / update / delete |
 | GET/POST | `/api/patients` | list (`?q=search`) / create |
 | GET/PUT/DELETE | `/api/patients/{id}` | read / update / delete |
-| GET/POST | `/api/appointments` | list (`?day=YYYY-MM-DD&doctor_id=&status_filter=`) / book |
+| GET/POST | `/api/appointments` | list (`?day=YYYY-MM-DD&doctor_id=&status_filter=&priority=`) / book |
 | GET/PUT/DELETE | `/api/appointments/{id}` | read / update (incl. status) / delete |
 | GET | `/api/stats` | numbers for the dashboard |
+| GET | `/api/activity` | recent activity feed (`?limit=10`) |
+| GET | `/api/info` | deployed version, environment and database status |
 
 Interactive docs: `http://localhost:8000/docs`
 
@@ -133,7 +138,7 @@ cd backend
 pytest -v
 ```
 
-21 tests across health/ready/metrics, doctors, patients and appointments (including double booking, cancelled-slot rebooking and stats). `tests/conftest.py` sets `DATABASE_URL=sqlite://` and overrides the `get_db` dependency with an in-memory SQLite session, so tests never touch a real database and every test starts from empty tables.
+26 tests across health/ready/metrics/info, doctors, patients, appointments (including double booking, cancelled-slot rebooking, priority and stats) and the activity feed. `tests/conftest.py` sets `DATABASE_URL=sqlite://` and overrides the `get_db` dependency with an in-memory SQLite session, so tests never touch a real database and every test starts from empty tables.
 
 In CI, a failing test stops the pipeline before any image is built.
 
@@ -254,6 +259,26 @@ helm list -n careslot
 helm history careslot -n careslot
 helm rollback careslot <revision> -n careslot
 ```
+
+### Ingress vs ingress controller
+
+The `Ingress` in the chart is only a set of routing rules (`/` → frontend, `/api` → backend). Nothing happens until an **ingress controller** reads those rules and actually proxies the traffic. Here that's ingress-nginx, installed separately (`scripts/install-addons.sh` on EKS, `scripts/setup-local-cluster.sh` locally). Without it the Ingress object exists but `ADDRESS` stays empty.
+
+### PostgreSQL in the cluster vs Amazon RDS
+
+For this project Postgres runs inside Kubernetes as a StatefulSet with a PersistentVolumeClaim. That keeps the whole stack in one Helm chart, costs nothing extra and works the same on kind and EKS, which is right for a classroom/demo environment.
+
+For a real clinic I'd move the database to **Amazon RDS**:
+
+| | Postgres StatefulSet (this project) | Amazon RDS |
+|---|---|---|
+| Backups / point-in-time restore | do it yourself (cron + `pg_dump`) | automatic |
+| High availability | single pod, single volume in one AZ | Multi-AZ standby with automatic failover |
+| Upgrades, patching | manual | managed maintenance windows |
+| Cost | just the node + EBS volume | extra monthly cost |
+| Portability | same chart anywhere | AWS only |
+
+Patient data is the one thing the clinic can't lose, so losing a node shouldn't put it at risk. The app wouldn't change: only `DATABASE_URL` in the Secret would point to the RDS endpoint, and Terraform would create the RDS instance in the private subnets.
 
 Open the app at the ingress load balancer address:
 

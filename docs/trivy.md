@@ -31,3 +31,17 @@ The frontend image (`nginx-unprivileged` on Alpine, with `apk upgrade` during th
 ## What a clean result means
 
 A clean scan means no **known, already-fixed** HIGH/CRITICAL CVEs in the packages Trivy can see at build time. It doesn't mean the app is secure: it says nothing about bugs in my own code, leaked secrets, or CVEs published after the image was built. That's why the pipeline re-scans every new image, and why other layers (dependency updates, secret scanning, non-root containers, least-privilege IAM) still matter.
+
+## Where Trivy fits among the security layers
+
+Container scanning is only one layer. The ones the course lists, and where this project stands on each:
+
+| Layer | What it checks | In this project |
+|---|---|---|
+| **SAST** (static analysis) | my own source code for insecure patterns (SQL injection, unsafe eval...) before it runs | not automated yet; SQLAlchemy queries are parameterised and pydantic validates every request body. Next step would be Bandit or Semgrep in the test job |
+| **Dependency scanning** | known CVEs in libraries I pull in (`requirements.txt`, `package-lock.json`) | covered for the backend because Trivy reads the installed `site-packages` inside the image; versions are pinned so a scan result is reproducible |
+| **Secret scanning** | API keys, passwords or tokens committed to git | GitHub's built-in secret scanning on the public repo; `.gitignore` keeps `.env`, `*.tfvars` and Terraform state out; CI logs in to AWS with OIDC so there are no long-lived AWS keys to leak |
+| **Container scanning** | OS packages and libraries inside the final image | **Trivy, on both images, every push, failing on HIGH/CRITICAL** |
+| **Runtime security** | what the container actually does while running | non-root users (uid 10001 / 101), `allowPrivilegeEscalation: false`, resource limits, separate namespace, DB password in a Secret instead of the image |
+
+No single layer catches everything: Trivy won't find a bug in my booking logic, and SAST won't find an old OpenSSL in the base image.
