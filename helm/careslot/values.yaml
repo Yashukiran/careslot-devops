@@ -1,6 +1,9 @@
 # Default values for the careslot chart.
 # CI overrides the image repository/tag with the commit SHA on every deploy.
 
+# shown in the app's sidebar next to the deployed build
+environment: kubernetes
+
 backend:
   replicaCount: 2
   image:

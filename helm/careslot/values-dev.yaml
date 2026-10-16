@@ -1,4 +1,6 @@
 # values used for the classroom / EKS demo
+environment: dev
+
 backend:
   seedData: true
 

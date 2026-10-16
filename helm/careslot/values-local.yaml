@@ -2,6 +2,8 @@
 ingress:
   host: careslot.127.0.0.1.nip.io   # nip.io resolves to 127.0.0.1, no hosts-file edit needed
 
+environment: kind (local)
+
 backend:
   workers: 1
   resources:

@@ -60,6 +60,8 @@ spec:
               value: {{ .Values.backend.timezone | quote }}
             - name: APP_VERSION
               value: {{ .Values.backend.image.tag | quote }}
+            - name: APP_ENV
+              value: {{ .Values.environment | quote }}
           startupProbe:
             httpGet:
               path: /health

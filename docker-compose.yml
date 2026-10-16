@@ -21,6 +21,8 @@ services:
       DATABASE_URL: postgresql+psycopg://careslot:careslot@postgres:5432/careslot
       SEED_DATA: "true"
       CLINIC_TZ: Asia/Kolkata
+      APP_ENV: docker compose
+      APP_VERSION: local
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
