@@ -29,6 +29,8 @@ const query = (params) => {
 
 export const api = {
   stats: () => request("/stats"),
+  info: () => request("/info"),
+  activity: (limit = 8) => request(`/activity?limit=${limit}`),
 
   doctors: (params = {}) => request(`/doctors${query(params)}`),
   createDoctor: (body) => request("/doctors", { method: "POST", body: JSON.stringify(body) }),

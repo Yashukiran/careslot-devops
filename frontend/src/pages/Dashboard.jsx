@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
-import StatusBadge from "../components/StatusBadge.jsx";
+import StatusBadge, { PriorityBadge } from "../components/StatusBadge.jsx";
 import Modal from "../components/Modal.jsx";
 import BookingForm from "../components/BookingForm.jsx";
 import { Empty, ErrorBox, Loading } from "../components/States.jsx";
-import { formatTime, initials, todayISO } from "../utils.js";
+import { formatTime, initials, timeAgo, todayISO } from "../utils.js";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [today, setToday] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [feed, setFeed] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
@@ -17,10 +18,16 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     setError("");
     try {
-      const [s, appts, docs] = await Promise.all([api.stats(), api.appointments({ day: todayISO() }), api.doctors()]);
+      const [s, appts, docs, act] = await Promise.all([
+        api.stats(),
+        api.appointments({ day: todayISO() }),
+        api.doctors(),
+        api.activity(8),
+      ]);
       setStats(s);
       setToday(appts);
       setDoctors(docs);
+      setFeed(act);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -47,7 +54,11 @@ export default function Dashboard() {
   const s = stats.by_status;
   const waiting = today.filter((a) => a.status === "checked_in");
   const cards = [
-    { label: "Appointments today", value: stats.appointments_today, hint: `${s.scheduled} still to come` },
+    {
+      label: "Appointments today",
+      value: stats.appointments_today,
+      hint: `${s.scheduled} still to come${stats.urgent_today ? ` · ${stats.urgent_today} urgent` : ""}`,
+    },
     { label: "In waiting room", value: s.checked_in, hint: waiting[0] ? `Next: ${waiting[0].patient_name}` : "Nobody waiting" },
     { label: "Seen today", value: s.completed, hint: `${s.cancelled + s.no_show} cancelled / no-show` },
     { label: "Doctors on duty", value: stats.doctors, hint: stats.busiest_doctor ? `Busiest: ${stats.busiest_doctor}` : "—" },
@@ -89,6 +100,7 @@ export default function Dashboard() {
                     <div className="tl-title">
                       <strong>{a.patient_name}</strong>
                       <StatusBadge status={a.status} />
+                      <PriorityBadge priority={a.priority} />
                     </div>
                     <span className="muted">
                       {a.doctor_name} · {a.reason || "General consultation"}
@@ -112,10 +124,11 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Doctors</h2>
-          </div>
+        <div className="stack">
+          <section className="panel">
+            <div className="panel-head">
+              <h2>Doctors</h2>
+            </div>
           <ul className="doc-list">
             {perDoctor.map((d) => (
               <li key={d.id}>
@@ -132,7 +145,29 @@ export default function Dashboard() {
               </li>
             ))}
           </ul>
-        </section>
+          </section>
+
+          <section className="panel">
+            <div className="panel-head">
+              <h2>Recent activity</h2>
+            </div>
+            {feed.length === 0 ? (
+              <Empty text="Nothing has happened yet today." />
+            ) : (
+              <ul className="feed">
+                {feed.map((item) => (
+                  <li key={item.id}>
+                    <span className={`feed-dot feed-${item.kind}`} />
+                    <div>
+                      <span>{item.message}</span>
+                      <small className="muted">{timeAgo(item.created_at)}</small>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       </div>
 
       {booking && (

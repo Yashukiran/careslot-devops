@@ -12,6 +12,7 @@ export default function BookingForm({ onBooked, onCancel }) {
     time: "10:00",
     duration_min: 20,
     reason: "",
+    priority: "routine",
   });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export default function BookingForm({ onBooked, onCancel }) {
         start_time: start.toISOString(),
         duration_min: Number(form.duration_min),
         reason: form.reason,
+        priority: form.priority,
       });
       onBooked(appt);
     } catch (err) {
@@ -91,10 +93,19 @@ export default function BookingForm({ onBooked, onCancel }) {
           </select>
         </label>
       </div>
-      <label>
-        Reason for visit
-        <input placeholder="e.g. fever, follow-up" maxLength={200} value={form.reason} onChange={set("reason")} />
-      </label>
+      <div className="form-row">
+        <label className="grow">
+          Reason for visit
+          <input placeholder="e.g. fever, follow-up" maxLength={200} value={form.reason} onChange={set("reason")} />
+        </label>
+        <label>
+          Priority
+          <select value={form.priority} onChange={set("priority")}>
+            <option value="routine">Routine</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </label>
+      </div>
 
       {error && <p className="form-error">{error}</p>}
 

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
-import StatusBadge from "../components/StatusBadge.jsx";
+import { PriorityBadge } from "../components/StatusBadge.jsx";
 import Modal from "../components/Modal.jsx";
 import BookingForm from "../components/BookingForm.jsx";
 import { Empty, ErrorBox, Loading } from "../components/States.jsx";
-import { STATUS_LABELS, formatDate, formatTime, todayISO } from "../utils.js";
+import { PRIORITY_LABELS, STATUS_LABELS, formatDate, formatTime, todayISO } from "../utils.js";
 
 export default function Appointments() {
-  const [filters, setFilters] = useState({ day: todayISO(), doctor_id: "", status_filter: "" });
+  const [filters, setFilters] = useState({ day: todayISO(), doctor_id: "", status_filter: "", priority: "" });
   const [rows, setRows] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +72,14 @@ export default function Appointments() {
               </option>
             ))}
           </select>
+          <select value={filters.priority} onChange={set("priority")} aria-label="Priority">
+            <option value="">Any priority</option>
+            {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
           {filters.day && (
             <button className="btn btn-light" onClick={() => setFilters({ ...filters, day: "" })}>
               All dates
@@ -109,7 +117,9 @@ export default function Appointments() {
                     <strong>{formatTime(a.start_time)}</strong>
                     <span className="muted"> {formatDate(a.start_time)} · {a.duration_min}m</span>
                   </td>
-                  <td data-label="Patient">{a.patient_name}</td>
+                  <td data-label="Patient">
+                    {a.patient_name} <PriorityBadge priority={a.priority} />
+                  </td>
                   <td data-label="Doctor">
                     {a.doctor_name}
                     <span className="muted block">{a.specialty}</span>

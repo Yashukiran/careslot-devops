@@ -1,3 +1,8 @@
+export const PRIORITY_LABELS = {
+  routine: "Routine",
+  urgent: "Urgent",
+};
+
 export const STATUS_LABELS = {
   scheduled: "Scheduled",
   checked_in: "Checked in",
@@ -26,6 +31,14 @@ export function todayISO() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function timeAgo(value) {
+  const seconds = Math.max(0, (Date.now() - parseTime(value)) / 1000);
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`;
+  return formatDate(value);
 }
 
 export function initials(name = "") {
