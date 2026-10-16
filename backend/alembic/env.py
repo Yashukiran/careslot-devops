@@ -1,7 +1,7 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
 from app.config import DATABASE_URL
 from app.database import Base
@@ -29,6 +29,11 @@ def run_migrations_online():
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
+        # with 2+ backend replicas starting at once only one should migrate,
+        # the others wait on this lock and then find nothing left to do
+        if connection.dialect.name == "postgresql":
+            connection.execute(text("SELECT pg_advisory_lock(424242)"))
+            connection.commit()
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()

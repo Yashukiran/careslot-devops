@@ -2,6 +2,7 @@
 from datetime import datetime, time, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.database import SessionLocal
 from app.models import Appointment, AppointmentStatus, Doctor, Patient
@@ -54,6 +55,10 @@ def seed() -> bool:
                            reason="Report review"))
         db.commit()
         return True
+    except IntegrityError:
+        # another replica seeded at the same moment
+        db.rollback()
+        return False
     finally:
         db.close()
 
