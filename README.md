@@ -202,9 +202,27 @@ terraform destroy
 
 ---
 
+## Running the Kubernetes part locally (kind)
+
+I don't have a paid AWS account, so for the demo the cluster runs on my laptop with [kind](https://kind.sigs.k8s.io/). The chart, ingress, HPA and monitoring are exactly the same as for EKS; only the cluster underneath changes.
+
+```bash
+./scripts/setup-local-cluster.sh
+```
+
+That creates the cluster from `k8s/kind-cluster.yaml`, installs metrics-server, ingress-nginx, kube-prometheus-stack and the Grafana dashboard, then deploys the chart using the GHCR image built for the current commit.
+
+- App through the ingress: http://careslot.127.0.0.1.nip.io (nip.io resolves to 127.0.0.1, so no hosts-file changes)
+- Prometheus: `kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090` → http://localhost:9090/targets
+- Grafana: `kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3002:80` → http://localhost:3002 (admin / careslot-admin)
+
+The **Deploy to local cluster** job in the pipeline runs on a self-hosted GitHub Actions runner on the same machine, so a push to `main` rolls the new image out to this cluster. It's switched on with the repository variable `LOCAL_DEPLOY=true`.
+
+Delete everything with `kind delete cluster --name careslot`.
+
 ## Kubernetes + Helm
 
-One-time cluster setup (storage class, monitoring stack, ingress controller, dashboard):
+One-time cluster setup on EKS (storage class, monitoring stack, ingress controller, dashboard):
 
 ```bash
 ./scripts/install-addons.sh

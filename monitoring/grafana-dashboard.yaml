@@ -83,7 +83,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"careslot-backend\"}[5m])) by (le))",
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_highr_seconds_bucket{job=\"careslot-backend\"}[5m])) by (le))",
               "legendFormat": "p95"
             }
           ],
@@ -120,7 +120,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(http_requests_total{job=\"careslot-backend\",status=\"5xx\"}[5m])) / clamp_min(sum(rate(http_requests_total{job=\"careslot-backend\"}[5m])), 0.001)",
+              "expr": "(sum(rate(http_requests_total{job=\"careslot-backend\",status=\"5xx\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{job=\"careslot-backend\"}[5m])), 0.001)",
               "legendFormat": "errors"
             }
           ],
