@@ -1,0 +1,11 @@
+# values used for the classroom / EKS demo
+backend:
+  seedData: true
+
+ingress:
+  enabled: true
+  className: nginx
+  host: ""
+
+serviceMonitor:
+  enabled: true

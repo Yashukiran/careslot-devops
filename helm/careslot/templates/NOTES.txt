@@ -1,0 +1,19 @@
+CareSlot {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+  kubectl get pods,svc -n {{ .Release.Namespace }}
+{{- if .Values.ingress.enabled }}
+
+Open the app through the ingress controller:
+
+  kubectl get svc -n ingress-nginx ingress-nginx-controller
+  # browse to the EXTERNAL-IP / hostname{{ with .Values.ingress.host }} (or http://{{ . }}){{ end }}
+{{- else }}
+
+No ingress enabled - port-forward to try it:
+
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ .Release.Name }}-frontend 3000:80
+{{- end }}
+{{- if .Values.backend.autoscaling.enabled }}
+
+Autoscaling: kubectl get hpa -n {{ .Release.Namespace }}
+{{- end }}

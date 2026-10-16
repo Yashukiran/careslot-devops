@@ -1,0 +1,73 @@
+# Default values for the careslot chart.
+# CI overrides the image repository/tag with the commit SHA on every deploy.
+
+backend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/yashukiran/careslot-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 8000
+  workers: 2
+  seedData: false
+  timezone: Asia/Kolkata
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 60
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/yashukiran/careslot-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+postgres:
+  image: postgres:16-alpine
+  database: careslot
+  user: careslot
+  # demo value only - pass a real one with --set postgres.password=... or an external secret
+  password: careslot-dev-password
+  storage:
+    size: 2Gi
+    storageClassName: ""   # empty = cluster default storage class
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+imagePullSecrets: []
+
+ingress:
+  enabled: false
+  className: nginx
+  host: ""          # leave empty to accept any host (e.g. the load balancer DNS name)
+  annotations: {}
+  tls: []
+
+# needs the prometheus operator CRDs (kube-prometheus-stack)
+serviceMonitor:
+  enabled: false
+  interval: 15s
+  labels:
+    release: kube-prometheus-stack
