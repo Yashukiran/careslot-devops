@@ -1,0 +1,37 @@
+# helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#   -n monitoring --create-namespace -f monitoring/kube-prometheus-stack-values.yaml
+
+prometheus:
+  prometheusSpec:
+    # pick up ServiceMonitors from every namespace, not only ones with the release label
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 2d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+
+grafana:
+  adminPassword: careslot-admin   # demo only, change it for anything real
+  service:
+    type: ClusterIP
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+  defaultDashboardsTimezone: browser
+
+alertmanager:
+  enabled: false
+
+# not reachable on EKS (managed control plane), avoids targets showing as DOWN
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
