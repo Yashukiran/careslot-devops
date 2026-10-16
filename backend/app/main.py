@@ -6,9 +6,10 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.config import APP_NAME, APP_VERSION, CORS_ORIGINS
+from app.config import APP_ENV, APP_NAME, APP_VERSION, CORS_ORIGINS
 from app.database import get_db
-from app.routers import appointments, doctors, patients, stats
+from app.routers import activity, appointments, doctors, patients, stats
+from app.schemas import Info
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -29,6 +30,7 @@ app.include_router(doctors.router)
 app.include_router(patients.router)
 app.include_router(appointments.router)
 app.include_router(stats.router)
+app.include_router(activity.router)
 
 # request count / latency histograms for prometheus, served on /metrics
 Instrumentator(excluded_handlers=["/metrics", "/health", "/ready"]).instrument(app).expose(
@@ -39,6 +41,17 @@ Instrumentator(excluded_handlers=["/metrics", "/health", "/ready"]).instrument(a
 @app.get("/", tags=["system"])
 def root():
     return {"service": APP_NAME, "version": APP_VERSION, "docs": "/docs"}
+
+
+@app.get("/api/info", response_model=Info, tags=["system"])
+def info(db: Session = Depends(get_db)):
+    # shown in the sidebar so you can see which build is deployed
+    try:
+        db.execute(text("SELECT 1"))
+        database = "ok"
+    except Exception:
+        database = "unreachable"
+    return Info(service=APP_NAME, version=APP_VERSION, environment=APP_ENV, database=database)
 
 
 @app.get("/health", tags=["system"])

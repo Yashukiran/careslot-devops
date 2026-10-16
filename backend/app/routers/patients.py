@@ -3,6 +3,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app import activity
 from app.database import get_db
 from app.models import Patient
 from app.schemas import PatientCreate, PatientOut, PatientUpdate
@@ -45,6 +46,7 @@ def get_patient(patient_id: int, db: Session = Depends(get_db)):
 def create_patient(payload: PatientCreate, db: Session = Depends(get_db)):
     patient = Patient(**payload.model_dump())
     db.add(patient)
+    activity.log(db, "patient", f"New patient registered: {patient.full_name}")
     return save(db, patient)
 
 
@@ -59,6 +61,7 @@ def update_patient(patient_id: int, payload: PatientUpdate, db: Session = Depend
 @router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_patient(patient_id: int, db: Session = Depends(get_db)):
     patient = get_patient_or_404(db, patient_id)
+    activity.log(db, "patient", f"Patient record removed: {patient.full_name}")
     db.delete(patient)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

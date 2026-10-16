@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import activity
 from app.database import get_db
 from app.models import Doctor
 from app.schemas import DoctorCreate, DoctorOut, DoctorUpdate
@@ -33,6 +34,7 @@ def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
 def create_doctor(payload: DoctorCreate, db: Session = Depends(get_db)):
     doctor = Doctor(**payload.model_dump())
     db.add(doctor)
+    activity.log(db, "doctor", f"{doctor.name} ({doctor.specialty}) joined the clinic")
     db.commit()
     db.refresh(doctor)
     return doctor
@@ -41,7 +43,10 @@ def create_doctor(payload: DoctorCreate, db: Session = Depends(get_db)):
 @router.put("/{doctor_id}", response_model=DoctorOut)
 def update_doctor(doctor_id: int, payload: DoctorUpdate, db: Session = Depends(get_db)):
     doctor = get_doctor_or_404(db, doctor_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if "active" in changes and changes["active"] != doctor.active:
+        activity.log(db, "doctor", f"{doctor.name} is now {'on' if changes['active'] else 'off'} duty")
+    for field, value in changes.items():
         setattr(doctor, field, value)
     db.commit()
     db.refresh(doctor)
@@ -51,6 +56,7 @@ def update_doctor(doctor_id: int, payload: DoctorUpdate, db: Session = Depends(g
 @router.delete("/{doctor_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_doctor(doctor_id: int, db: Session = Depends(get_db)):
     doctor = get_doctor_or_404(db, doctor_id)
+    activity.log(db, "doctor", f"{doctor.name} was removed")
     db.delete(doctor)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

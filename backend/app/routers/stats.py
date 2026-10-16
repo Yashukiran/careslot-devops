@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Appointment, AppointmentStatus, Doctor, Patient
+from app.models import Appointment, AppointmentStatus, Doctor, Patient, Priority
 from app.schemas import Stats
 from app.timeutils import day_range_utc, today_local
 
@@ -34,5 +34,10 @@ def get_stats(db: Session = Depends(get_db)):
         patients=db.scalar(select(func.count()).select_from(Patient)),
         appointments_today=sum(by_status.values()),
         by_status=by_status,
+        urgent_today=db.scalar(
+            select(func.count()).select_from(Appointment).where(
+                today, Appointment.priority == Priority.urgent, Appointment.status != AppointmentStatus.cancelled
+            )
+        ),
         busiest_doctor=busiest[0] if busiest else None,
     )

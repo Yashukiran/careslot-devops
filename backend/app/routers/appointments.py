@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app import activity
 from app.database import get_db
-from app.models import Appointment, AppointmentStatus, Doctor, Patient
+from app.models import Appointment, AppointmentStatus, Doctor, Patient, Priority
 from app.schemas import AppointmentCreate, AppointmentOut, AppointmentUpdate
 from app.timeutils import as_naive_utc, day_range_utc, to_utc
 
@@ -22,6 +23,7 @@ def to_out(appt: Appointment) -> AppointmentOut:
         start_time=appt.start_time,
         duration_min=appt.duration_min,
         reason=appt.reason,
+        priority=appt.priority,
         status=appt.status,
         patient_name=appt.patient.full_name,
         doctor_name=appt.doctor.name,
@@ -62,6 +64,7 @@ def list_appointments(
     day: date | None = None,
     doctor_id: int | None = None,
     status_filter: AppointmentStatus | None = None,
+    priority: Priority | None = None,
     db: Session = Depends(get_db),
 ):
     query = (
@@ -76,6 +79,8 @@ def list_appointments(
         query = query.where(Appointment.doctor_id == doctor_id)
     if status_filter:
         query = query.where(Appointment.status == status_filter)
+    if priority:
+        query = query.where(Appointment.priority == priority)
     return [to_out(a) for a in db.scalars(query).unique()]
 
 
@@ -86,7 +91,8 @@ def get_appointment(appointment_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=AppointmentOut, status_code=status.HTTP_201_CREATED)
 def create_appointment(payload: AppointmentCreate, db: Session = Depends(get_db)):
-    if db.get(Patient, payload.patient_id) is None:
+    patient = db.get(Patient, payload.patient_id)
+    if patient is None:
         raise HTTPException(status_code=404, detail="Patient not found")
     doctor = db.get(Doctor, payload.doctor_id)
     if doctor is None:
@@ -97,6 +103,8 @@ def create_appointment(payload: AppointmentCreate, db: Session = Depends(get_db)
     check_slot_free(db, payload.doctor_id, payload.start_time, payload.duration_min)
     appt = Appointment(**payload.model_dump(exclude={"start_time"}), start_time=to_utc(payload.start_time))
     db.add(appt)
+    label = "Urgent appointment" if payload.priority == Priority.urgent else "Appointment"
+    activity.log(db, "booking", f"{label} booked: {patient.full_name} with {doctor.name}")
     db.commit()
     return to_out(get_appointment_or_404(db, appt.id))
 
@@ -122,6 +130,12 @@ def update_appointment(appointment_id: int, payload: AppointmentUpdate, db: Sess
                 ignore_id=appt.id,
             )
 
+    if "status" in changes and changes["status"] != appt.status:
+        new_status = changes["status"].value.replace("_", " ")
+        activity.log(db, "status", f"{appt.patient.full_name} marked {new_status} ({appt.doctor.name})")
+    elif {"doctor_id", "start_time"} & changes.keys():
+        activity.log(db, "booking", f"Appointment rescheduled for {appt.patient.full_name}")
+
     for field, value in changes.items():
         setattr(appt, field, value)
     db.commit()
@@ -132,6 +146,7 @@ def update_appointment(appointment_id: int, payload: AppointmentUpdate, db: Sess
 @router.delete("/{appointment_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_appointment(appointment_id: int, db: Session = Depends(get_db)):
     appt = get_appointment_or_404(db, appointment_id)
+    activity.log(db, "booking", f"Appointment deleted: {appt.patient.full_name} with {appt.doctor.name}")
     db.delete(appt)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
