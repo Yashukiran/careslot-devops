@@ -1,0 +1,17 @@
+# Lab 2 - the service exists but nothing answers.
+#   kubectl apply -f troubleshooting/broken-service.yaml
+#   kubectl run curl -n careslot --rm -it --image=curlimages/curl --restart=Never -- \
+#       curl -m 5 http://careslot-backend-broken:8000/health
+apiVersion: v1
+kind: Service
+metadata:
+  name: careslot-backend-broken
+  namespace: careslot
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: careslot-api   # typo: the pods are labelled "backend"
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

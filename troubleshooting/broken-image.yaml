@@ -1,0 +1,24 @@
+# Lab 1 - the pod never starts.
+#   kubectl apply -f troubleshooting/broken-image.yaml
+#   kubectl get pods -n careslot -l app=broken-image
+# See troubleshooting/README.md for the walkthrough.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broken-image
+  namespace: careslot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: broken-image
+  template:
+    metadata:
+      labels:
+        app: broken-image
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/yashukiran/careslot-backend:does-not-exist
+          ports:
+            - containerPort: 8000
