@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.database import SessionLocal
-from app.models import Appointment, AppointmentStatus, Doctor, Patient
+from app.models import Activity, Appointment, AppointmentStatus, Doctor, Patient, Priority
 from app.timeutils import CLINIC_TZ, to_utc, today_local
 
 DOCTORS = [
@@ -24,14 +24,14 @@ PATIENTS = [
     ("Suresh Kumar", "+91 96320 88990", 63),
 ]
 
-# (patient index, doctor index, hour, minute, reason, status)
+# (patient index, doctor index, hour, minute, reason, status, priority)
 TODAY = [
-    (0, 0, 9, 30, "Fever and body ache", AppointmentStatus.completed),
-    (3, 1, 10, 0, "Vaccination", AppointmentStatus.checked_in),
-    (1, 2, 11, 0, "Skin rash follow-up", AppointmentStatus.scheduled),
-    (5, 3, 12, 0, "Knee pain", AppointmentStatus.scheduled),
-    (2, 0, 15, 30, "BP review", AppointmentStatus.scheduled),
-    (4, 2, 16, 0, "Acne consultation", AppointmentStatus.cancelled),
+    (0, 0, 9, 30, "Fever and body ache", AppointmentStatus.completed, Priority.routine),
+    (3, 1, 10, 0, "Vaccination", AppointmentStatus.checked_in, Priority.routine),
+    (1, 2, 11, 0, "Skin rash follow-up", AppointmentStatus.scheduled, Priority.routine),
+    (5, 3, 12, 0, "Knee pain after a fall", AppointmentStatus.scheduled, Priority.urgent),
+    (2, 0, 15, 30, "BP review", AppointmentStatus.scheduled, Priority.routine),
+    (4, 2, 16, 0, "Acne consultation", AppointmentStatus.cancelled, Priority.routine),
 ]
 
 
@@ -46,13 +46,18 @@ def seed() -> bool:
         db.flush()
 
         day = today_local()
-        for p, d, hh, mm, reason, status in TODAY:
+        for p, d, hh, mm, reason, status, priority in TODAY:
             start = datetime.combine(day, time(hh, mm), tzinfo=CLINIC_TZ)
             db.add(Appointment(patient_id=patients[p].id, doctor_id=doctors[d].id, start_time=to_utc(start),
-                               duration_min=20, reason=reason, status=status))
+                               duration_min=20, reason=reason, status=status, priority=priority))
         tomorrow = datetime.combine(day + timedelta(days=1), time(10, 30), tzinfo=CLINIC_TZ)
         db.add(Appointment(patient_id=patients[0].id, doctor_id=doctors[0].id, start_time=to_utc(tomorrow),
                            reason="Report review"))
+        db.add_all([
+            Activity(kind="system", message="Clinic data loaded"),
+            Activity(kind="status", message="Rahul Sharma marked completed (Dr. Ananya Rao)"),
+            Activity(kind="status", message="Kavya Reddy marked checked in (Dr. Vikram Mehta)"),
+        ])
         db.commit()
         return True
     except IntegrityError:

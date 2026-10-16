@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import AppointmentStatus
+from app.models import AppointmentStatus, Priority
 
 
 class DoctorBase(BaseModel):
@@ -57,6 +57,7 @@ class AppointmentCreate(BaseModel):
     start_time: datetime
     duration_min: int = Field(default=20, ge=5, le=240)
     reason: str = Field(default="", max_length=200)
+    priority: Priority = Priority.routine
 
 
 class AppointmentUpdate(BaseModel):
@@ -64,6 +65,7 @@ class AppointmentUpdate(BaseModel):
     start_time: datetime | None = None
     duration_min: int | None = Field(default=None, ge=5, le=240)
     reason: str | None = Field(default=None, max_length=200)
+    priority: Priority | None = None
     status: AppointmentStatus | None = None
 
 
@@ -75,6 +77,7 @@ class AppointmentOut(BaseModel):
     start_time: datetime
     duration_min: int
     reason: str
+    priority: Priority
     status: AppointmentStatus
     patient_name: str
     doctor_name: str
@@ -86,4 +89,20 @@ class Stats(BaseModel):
     patients: int
     appointments_today: int
     by_status: dict[str, int]
+    urgent_today: int
     busiest_doctor: str | None
+
+
+class ActivityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    kind: str
+    message: str
+    created_at: datetime
+
+
+class Info(BaseModel):
+    service: str
+    version: str
+    environment: str
+    database: str
