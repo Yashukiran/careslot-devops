@@ -1,0 +1,14 @@
+# overrides for the local kind cluster (laptop demo, no AWS)
+ingress:
+  host: careslot.127.0.0.1.nip.io   # nip.io resolves to 127.0.0.1, no hosts-file edit needed
+
+backend:
+  workers: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+
+postgres:
+  storage:
+    size: 1Gi

@@ -143,3 +143,38 @@ jobs:
           kubectl get pods,svc,ingress,hpa -n "$NAMESPACE"
           kubectl rollout status deployment/careslot-backend -n "$NAMESPACE"
           kubectl rollout status deployment/careslot-frontend -n "$NAMESPACE"
+
+  # Same deploy, but to the local kind cluster through a self-hosted runner on my laptop.
+  # Turned on by setting the repo variable LOCAL_DEPLOY=true once the runner is registered.
+  deploy-local:
+    name: Deploy to local cluster
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.LOCAL_DEPLOY == 'true'
+    runs-on: [self-hosted, careslot]
+    defaults:
+      run:
+        shell: bash
+    env:
+      KUBE_CONTEXT: kind-careslot
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Helm upgrade
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          helm upgrade --install careslot ./helm/careslot \
+            --kube-context "$KUBE_CONTEXT" \
+            --namespace "$NAMESPACE" --create-namespace \
+            -f helm/careslot/values-dev.yaml \
+            -f helm/careslot/values-local.yaml \
+            --set backend.image.repository=${REGISTRY}/${owner}/careslot-backend \
+            --set frontend.image.repository=${REGISTRY}/${owner}/careslot-frontend \
+            --set backend.image.tag=${{ github.sha }} \
+            --set frontend.image.tag=${{ github.sha }} \
+            --wait --timeout 10m
+
+      - name: Show rollout
+        run: |
+          kubectl --context "$KUBE_CONTEXT" get pods,svc,ingress,hpa -n "$NAMESPACE"
+          kubectl --context "$KUBE_CONTEXT" rollout status deployment/careslot-backend -n "$NAMESPACE"
+          kubectl --context "$KUBE_CONTEXT" rollout status deployment/careslot-frontend -n "$NAMESPACE"
